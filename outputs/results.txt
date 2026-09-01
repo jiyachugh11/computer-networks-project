@@ -1,0 +1,14 @@
+
+--- train.py run ---
+Classes: ['BitTorrent', 'Skype', 'Zoom']
+Final losses per step: [2.3496601581573486, 1.6069788932800293, 1.6067109107971191, 1.6825873851776123, 2.222407341003418, 1.6350696086883545, 2.316499710083008, 1.5905134677886963, 2.236583709716797, 1.6511704921722412, 2.032555103302002, 1.5690773725509644]
+Average final-epoch loss: 1.8994
+
+--- evaluate.py run ---
+Classes: ['BitTorrent', 'Skype', 'Zoom']
+Accuracy: 0.3333, F1: 0.1667
+
+--- predict.py run ---
+Image: C:\Users\navya\AppData\Local\Temp\tmpgo768xbn\dummy_flow.png
+Predicted: Zoom
+Scores: {'Skype': 0.3151783347129822, 'Zoom': 0.3477557301521301, 'BitTorrent': 0.3370659649372101}
