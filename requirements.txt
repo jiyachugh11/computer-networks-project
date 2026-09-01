@@ -1,0 +1,14 @@
+```text
+torch
+torchvision
+transformers
+numpy
+pandas
+Pillow
+scikit-learn
+PyYAML
+matplotlib
+seaborn
+tqdm
+scapy
+```

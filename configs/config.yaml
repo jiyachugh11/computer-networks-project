@@ -1,0 +1,31 @@
+seed: 42
+
+data:
+  train_csv: data/splits/train.csv
+  val_csv: data/splits/val.csv
+  test_csv: data/splits/test.csv
+  image_size: 28
+  num_classes: 10
+
+model:
+  visual_dim: 512
+  text_dim: 1024
+  fused_dim: 1024
+  adapter_dim: 256
+  alpha: 0.9
+  bert_model: bert-base-uncased
+
+training:
+  epochs: 200
+  batch_size: 64
+  learning_rate: 0.002
+  warmup_lr: 0.00001
+  contrastive_weight: 1.0
+  optimizer: SGD
+  momentum: 0.9
+  weight_decay: 0.0001
+  num_workers: 2
+
+checkpoint:
+  directory: checkpoints/
+  best_model: checkpoints/trafficclip_best.pt
