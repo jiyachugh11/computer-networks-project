@@ -1,60 +1,133 @@
 import argparse
 import os
-import tempfile
-import numpy as np
-import pandas as pd
-from PIL import Image as PILImage
 
 from src.datasets.traffic_dataset import TrafficDataset
 from src.training.trainer import Trainer
 
 
-def make_dummy_dataset(n_per_class=8):
-    """Generates placeholder data so the pipeline can run before real
-    preprocessed images exist. Swap --train_csv to a real CSV once
-    preprocess.py has produced actual images."""
-    tmp_dir = tempfile.mkdtemp()
-    csv_path = os.path.join(tmp_dir, "dummy_train.csv")
-    rows = []
-    classes = ["Skype", "Zoom", "BitTorrent"]
-    for c in classes:
-        for i in range(n_per_class):
-            img_path = os.path.join(tmp_dir, f"{c}_{i}.png")
-            arr = np.random.randint(0, 255, (28, 28), dtype=np.uint8)
-            PILImage.fromarray(arr, mode="L").save(img_path)
-            rows.append((img_path, c))
-    pd.DataFrame(rows, columns=["image_path", "label"]).to_csv(csv_path, index=False)
-    return csv_path
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Train TrafficCLIP")
-    parser.add_argument("--train_csv", default=None, help="Path to train.csv (image_path,label)")
-    parser.add_argument("--epochs", type=int, default=2)
-    parser.add_argument("--batch_size", type=int, default=4)
+
+    parser = argparse.ArgumentParser(
+        description="Train TrafficCLIP"
+    )
+
+    parser.add_argument(
+        "--train_csv",
+        default="data/splits/train.csv",
+        help="Path to training CSV"
+    )
+
+    parser.add_argument(
+        "--val_csv",
+        default="data/splits/val.csv",
+        help="Path to validation CSV"
+    )
+
+    parser.add_argument(
+        "--test_csv",
+        default="data/splits/test.csv",
+        help="Path to test CSV"
+    )
+
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=20
+    )
+
+    parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=32
+    )
+
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=0.002
+    )
+
     args = parser.parse_args()
 
-    if args.train_csv is None or not os.path.exists(args.train_csv) or os.path.getsize(args.train_csv) < 30:
-        print("No real training data found — using dummy generated images for a pipeline smoke test.")
-        csv_path = make_dummy_dataset()
-    else:
-        csv_path = args.train_csv
+    # Check that the CSV files exist
+    for csv_file in [
+        args.train_csv,
+        args.val_csv,
+        args.test_csv
+    ]:
 
-    dataset = TrafficDataset(csv_path)
-    class_names = list(dataset.class_to_idx.keys())
+        if not os.path.exists(csv_file):
+            raise FileNotFoundError(
+                f"CSV file not found: {csv_file}"
+            )
+
+    print("==============================")
+    print("TrafficCLIP Training")
+    print("==============================")
+
+    print(f"Train CSV: {args.train_csv}")
+    print(f"Val CSV:   {args.val_csv}")
+    print(f"Test CSV:  {args.test_csv}")
+    print(f"Epochs:    {args.epochs}")
+    print(f"Batch size:{args.batch_size}")
+
+    # Load datasets
+    train_dataset = TrafficDataset(
+        args.train_csv
+    )
+
+    # Use the SAME class mapping for validation and test
+    class_names = list(
+        train_dataset.class_to_idx.keys()
+    )
+
+    val_dataset = TrafficDataset(
+        args.val_csv,
+        class_to_idx=train_dataset.class_to_idx
+    )
+
+    test_dataset = TrafficDataset(
+        args.test_csv,
+        class_to_idx=train_dataset.class_to_idx
+    )
+
+    print()
     print(f"Classes: {class_names}")
 
-    trainer = Trainer(dataset, class_names, batch_size=args.batch_size, epochs=args.epochs)
-    losses = trainer.train()
+    # Create trainer
+    trainer = Trainer(
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        test_dataset=test_dataset,
+        class_names=class_names,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        epochs=args.epochs
+    )
 
+    # Train
+    train_losses, val_losses, accuracy, macro_f1 = trainer.train()
+
+    # Save results
     os.makedirs("outputs", exist_ok=True)
-    with open("outputs/results.txt", "a") as f:
-        f.write(f"\n--- train.py run ---\n")
-        f.write(f"Classes: {class_names}\n")
-        f.write(f"Final losses per step: {losses}\n")
-        f.write(f"Average final-epoch loss: {sum(losses[-len(dataset)//args.batch_size:]) / max(1, len(dataset)//args.batch_size):.4f}\n")
 
-    print("Training complete. Results appended to outputs/results.txt")
+    with open(
+        "outputs/results.txt",
+        "a"
+    ) as f:
+
+        f.write("\n--- TrafficCLIP Training ---\n")
+        f.write(f"Classes: {class_names}\n")
+        f.write(f"Epochs: {args.epochs}\n")
+        f.write(f"Batch size: {args.batch_size}\n")
+        f.write(f"Final Train Loss: {train_losses[-1]:.4f}\n")
+        f.write(f"Final Val Loss: {val_losses[-1]:.4f}\n")
+        f.write(f"Test Accuracy: {accuracy * 100:.2f}%\n")
+        f.write(f"Macro F1: {macro_f1 * 100:.2f}%\n")
+
+    print()
+    print("Training complete!")
+    print("Results saved to outputs/results.txt")
 
 
 if __name__ == "__main__":
